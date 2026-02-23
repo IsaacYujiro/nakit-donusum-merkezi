@@ -215,38 +215,38 @@ elif st.session_state['sayfa'] == "Anında Değerleme Modülü":
                     st.markdown(f'<div class="price-tag-green">₺{vefa_nakit:,}</div>', unsafe_allow_html=True)
                     st.markdown(f"<small style='color:#6b7280;'>30 Günlük Geri Alım Bedeli: ₺{vefa_geri_alim:,}</small>", unsafe_allow_html=True)
                     st.markdown('</div>', unsafe_allow_html=True)
+                
+                st.write("")
+                st.markdown("### 📝 3. Adım: Başvuruyu Tamamla")
                 secilen_teklif = st.radio("Sizin için en uygun teklifi seçin:", ["🚀 Direkt Satış", "🔄 30 Gün Emanet (Vefa)"], key="teklif_secim")
                 
-                # Oturum hafızasındaki maili (varsa) otomatik getir
                 mevcut_email = st.session_state['aktif_kullanici_maili']
                 email = st.text_input("📬 Teklifi dondurmak ve randevu almak için E-posta:", value=mevcut_email, placeholder="ornek@gmail.com")
                 
                 if st.button("Teklifi Onayla ve Randevu Al", type="primary"):
-            if email:
-                if "Direkt" in secilen_teklif:
-                    teklif_sonucu = f"₺{direkt_satis} (Direkt Satış)"
-                else:
-                    teklif_sonucu = f"₺{vefa_nakit} (Vefa - Geri Alım: ₺{vefa_geri_alim})"
-                
-                try:
-                    # Gerçek Veritabanına (SQLite) Kayıt İşlemi
-                    conn = sqlite3.connect('vefatech_sistem.db')
-                    c = conn.cursor()
-                    c.execute("INSERT INTO cuzdan (email, cihaz, teklif, tarih) VALUES (?, ?, ?, ?)", 
-                              (email, f"{aranacak_kelime} ({kozmetik_durum})", teklif_sonucu, datetime.now().strftime("%Y-%m-%d %H:%M")))
-                    conn.commit()
-                    conn.close()
-                    
-                    st.session_state['kullanici_giris_yapti_mi'] = True
-                    st.session_state['aktif_kullanici_maili'] = email
-                    
-                    st.success("Harika! Talebiniz doğrudan şifreli veritabanımıza kaydedildi. Sol menüden 'Cüzdanım' sekmesine gidebilirsiniz.")
-                    st.balloons()
-                except Exception as e:
-                    st.error(f"Sistemsel bir veritabanı hatası oluştu: {e}")
-            else:
-                st.error("Lütfen randevu kaydı için bir e-posta adresi girin.")
-                            st.error("Sistemsel bir bağlantı hatası oluştu.")
+                    if email:
+                        if "Direkt" in secilen_teklif:
+                            teklif_sonucu = f"₺{direkt_satis} (Direkt Satış)"
+                        else:
+                            teklif_sonucu = f"₺{vefa_nakit} (Vefa - Geri Alım: ₺{vefa_geri_alim})"
+                        
+                        try:
+                            # Gerçek Veritabanına (SQLite) Kayıt İşlemi
+                            import sqlite3
+                            conn = sqlite3.connect('vefatech_sistem.db')
+                            c = conn.cursor()
+                            c.execute("INSERT INTO cuzdan (email, cihaz, teklif, tarih) VALUES (?, ?, ?, ?)", 
+                                      (email, f"{aranacak_kelime} ({kozmetik_durum})", teklif_sonucu, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                            conn.commit()
+                            conn.close()
+                            
+                            st.session_state['kullanici_giris_yapti_mi'] = True
+                            st.session_state['aktif_kullanici_maili'] = email
+                            
+                            st.success("Harika! Talebiniz doğrudan şifreli veritabanımıza kaydedildi. Sol menüden 'Cüzdanım' sekmesine gidebilirsiniz.")
+                            st.balloons()
+                        except Exception as e:
+                            st.error(f"Sistemsel bir veritabanı hatası oluştu: {e}")
                     else:
                         st.error("Lütfen randevu kaydı için bir e-posta adresi girin.")
 
@@ -278,6 +278,7 @@ elif st.session_state['sayfa'] == "Cüzdanım / Tekliflerim":
         st.markdown("### ⏳ Veritabanındaki İşlemleriniz")
         
         # SQLite'dan Kullanıcının Verilerini Çekiyoruz (SQL Sorgusu)
+        import sqlite3
         conn = sqlite3.connect('vefatech_sistem.db')
         df_cuzdan = pd.read_sql_query(f"SELECT cihaz, teklif, tarih FROM cuzdan WHERE email='{aktif_mail}'", conn)
         conn.close()
@@ -299,7 +300,7 @@ elif st.session_state['sayfa'] == "Cüzdanım / Tekliflerim":
             st.session_state['kullanici_giris_yapti_mi'] = False
             st.session_state['aktif_kullanici_maili'] = ""
             st.rerun()
-            
+    
 # ==============================================================================
 # BÖLÜM 6: LOJİSTİK VE CANLI RANDEVU SİSTEMİ (SAHA OPERASYONU)
 # ==============================================================================
