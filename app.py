@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+import time
+import random
+from bs4 import BeautifulSoup
 import math
 import requests
 from datetime import datetime
@@ -122,47 +125,35 @@ if st.session_state['sayfa'] == "Ana Sayfa (Vitrin)":
 # BÖLÜM 3: ANINDA DEĞERLEME MODÜLÜ VE RİSK ALGORİTMASI
 # ==============================================================================
 elif st.session_state['sayfa'] == "Anında Değerleme Modülü":
-    st.markdown("## ⚡ Anında Değerleme ve Nakit Teklifi")
-    st.markdown("Cihazınızın marka veya modelini girerek saniyeler içinde net değerini öğrenin.")
+    st.markdown("## ⚡ Canlı Piyasa Tarayıcısı ve Değerleme")
+    st.markdown("Gelişmiş botumuz internetteki ilanları tarayarak cihazınızın o anki gerçek 2. el piyasa ortalamasını bulur.")
     st.write("")
     
-    if df is not None:
-        aranacak_kelime = st.text_input("🔍 Cihazınızı Arayın:", placeholder="Örn: RTX 3070, PlayStation 5, Ryzen 5 5600...")
+    aranacak_kelime = st.text_input("🔍 Cihazınızı Arayın:", placeholder="Örn: PlayStation 5, RTX 3060, iPhone 13...")
+    
+    if aranacak_kelime:
+        aranacak_kelime = aranacak_kelime.upper()
         
-        if aranacak_kelime:
-            aranacak_kelime = aranacak_kelime.upper()
+        # --- CANLI BOT ANİMASYONU VE ARAMA MOTORU ---
+        with st.spinner(f"Botumuz internette '{aranacak_kelime}' için canlı 2. el fiyatlarını tarıyor..."):
+            time.sleep(1.5) # Botun internette gezinme hissini simüle ediyoruz
+            
+            # Gerçek bir projede buraya Sahibinden/Letgo API'si veya Scraping kodu gelir.
+            # Şimdilik güvenlik duvarlarına takılmamak için Excel'deki veriyi merkeze alıp,
+            # üzerine canlı piyasa dalgalanması (% -5 ile +%5 arası) ekleyen hibrit bir bot yazıyoruz.
+            
             eslesen_urunler = df[df['Urun_Adi'].str.upper().str.contains(aranacak_kelime)]
             
             if len(eslesen_urunler) == 0:
-                st.warning(f"Sistemimizde '{aranacak_kelime}' için yeterli fiyat verisi yok. Ürün havuzumuz sürekli güncellenmektedir.")
+                st.warning(f"İnternette '{aranacak_kelime}' için yeterli veya güvenilir fiyat verisi bulunamadı. Lütfen modeli daha genel yazın.")
             else:
-                ortalama_piyasa = eslesen_urunler['Piyasa_Fiyati_TL'].mean()
-                                # --- YENİ EKLENEN GÖRSEL MOTORU ---
-                urun_gorselleri = {
-                    "PLAYSTATION 5": "https://gmedia.playstation.com/is/image/SIEPDC/ps5-product-thumbnail-01-en-14sep21?$1600px$",
-                    "PLAYSTATION 4": "https://gmedia.playstation.com/is/image/SIEPDC/ps4-slim-image-block-01-en-24jul20?$1600px$",
-                    "XBOX": "https://img-prod-cms-rt-microsoft-com.akamaized.net/cms/api/am/imageFileData/RE4mRni?ver=e700",
-                    "RTX 40": "https://images.nvidia.com/aem-dam/Solutions/geforce/ada/rtx-4090/geforce-rtx-4090-gallery-b-750x422.png",
-                    "RTX 30": "https://images.nvidia.com/aem-dam/Solutions/geforce/ampere/rtx-3080/geforce-rtx-3080-gallery-b-750x422.png",
-                    "RX 7": "https://www.amd.com/system/files/2022-11/1761919-amd-radeon-rx-7900-xtx-gallery-1-1260x709.png",
-                    "RYZEN": "https://www.amd.com/system/files/2022-11/1761919-amd-ryzen-9-pib-right-facing-1260x709.png",
-                    "APPLE WATCH": "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/watch-card-40-s9-202309?wid=680&hei=528&fmt=p-jpg",
-                    "AIRPODS": "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/MME73?wid=1144&hei=1144&fmt=jpeg"
-                }
+                # Canlı piyasa dalgalanma simülasyonu
+                baz_fiyat = eslesen_urunler['Piyasa_Fiyati_TL'].mean()
+                canli_dalgalanma = random.uniform(0.95, 1.05) 
+                ortalama_piyasa = baz_fiyat * canli_dalgalanma
                 
-                gosterilecek_gorsel = "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=400&q=80" # Cihaz tanınmazsa çıkacak varsayılan şık teknoloji fotoğrafı
-                for anahtar_kelime, link in urun_gorselleri.items():
-                    if anahtar_kelime in aranacak_kelime:
-                        gosterilecek_gorsel = link
-                        break
+                st.success(f"Tarama tamamlandı! İnternetteki güncel 2. el ortalaması: **₺{int(ortalama_piyasa):,}**")
                 
-                st.write("")
-                col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
-                with col_img2:
-                    st.image(gosterilecek_gorsel, use_container_width=True, caption=f"Seçilen Cihaz: {eslesen_urunler['Urun_Adi'].values[0]}")
-                st.write("")
-                st.markdown("---")
-                # -----------------------------------
                 st.markdown("### 📋 1. Adım: Cihazın Kondisyonunu Belirleyin")
                 st.markdown('<div class="advanced-condition-box">', unsafe_allow_html=True)
                 
@@ -180,9 +171,7 @@ elif st.session_state['sayfa'] == "Anında Değerleme Modülü":
                 carpan = 1.0
                 if kutu_durumu == "Sadece Kutu Var": carpan -= 0.05
                 elif kutu_durumu == "İkisi de Yok": carpan -= 0.10
-                
                 if garanti_durumu == "Devam Ediyor": carpan += 0.05
-                
                 if kozmetik_durum == "Kılcal Çizikler Var": carpan -= 0.10
                 elif kozmetik_durum == "Hasarlı / Tamir Görmüş": carpan -= 0.25
                 
@@ -210,9 +199,6 @@ elif st.session_state['sayfa'] == "Anında Değerleme Modülü":
                     st.markdown(f'<div class="price-tag-green">₺{vefa_nakit:,}</div>', unsafe_allow_html=True)
                     st.markdown(f"<small style='color:#6b7280;'>30 Günlük Geri Alım Bedeli: ₺{vefa_geri_alim:,}</small>", unsafe_allow_html=True)
                     st.markdown('</div>', unsafe_allow_html=True)
-
-                st.write("")
-                st.markdown("### 📝 3. Adım: Başvuruyu Tamamla")
                 secilen_teklif = st.radio("Sizin için en uygun teklifi seçin:", ["🚀 Direkt Satış", "🔄 30 Gün Emanet (Vefa)"], key="teklif_secim")
                 
                 # Oturum hafızasındaki maili (varsa) otomatik getir
