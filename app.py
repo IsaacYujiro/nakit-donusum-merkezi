@@ -1,5 +1,21 @@
 import streamlit as st
 import pandas as pd
+import sqlite3
+
+# Veritabanı Kurulumu (Kalıcı Hafıza)
+def db_kurulum():
+    conn = sqlite3.connect('vefatech_sistem.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS cuzdan (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT,
+                    cihaz TEXT,
+                    teklif TEXT,
+                    tarih TEXT)''')
+    conn.commit()
+    conn.close()
+
+db_kurulum()
 import time
 import random
 from bs4 import BeautifulSoup
@@ -206,35 +222,30 @@ elif st.session_state['sayfa'] == "Anında Değerleme Modülü":
                 email = st.text_input("📬 Teklifi dondurmak ve randevu almak için E-posta:", value=mevcut_email, placeholder="ornek@gmail.com")
                 
                 if st.button("Teklifi Onayla ve Randevu Al", type="primary"):
-                    if email:
-                        # Seçilen teklifin net miktarını belirle
-                        if "Direkt" in secilen_teklif:
-                            teklif_sonucu = f"₺{direkt_satis} (Direkt Satış)"
-                        else:
-                            teklif_sonucu = f"₺{vefa_nakit} (Vefa - Geri Alım: ₺{vefa_geri_alim})"
-                        
-                        veri_paketi = {
-                            "Tarih": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                            "Email": email,
-                            "Cihaz": f"{aranacak_kelime} ({kozmetik_durum})",
-                            "Teklif": teklif_sonucu
-                        }
-                        
-                        google_url = "https://script.google.com/macros/s/AKfycbwnBoJA3WCy0LKWA0K1sCXvmie3fYPpx9Mg3hmTtildoe7_sUyNEHUz7FUI8koPyQrDuQ/exec"
-                        
-                        try:
-                            yanit = requests.post(google_url, json=veri_paketi)
-                            if yanit.status_code == 200:
-                                # Oturum Hafızasına Kaydetme İşlemleri (Giriş Yapmış Sayıyoruz)
-                                st.session_state['kullanici_giris_yapti_mi'] = True
-                                st.session_state['aktif_kullanici_maili'] = email
-                                st.session_state['bekleyen_teklifler'].append(veri_paketi)
-                                
-                                st.success(f"Harika! Talebiniz alındı. Sol menüden 'Cüzdanım / Tekliflerim' sekmesine giderek durumu takip edebilirsiniz.")
-                                st.balloons()
-                            else:
-                                st.error("Kayıt sırasında sunucu hatası oluştu, lütfen tekrar deneyin.")
-                        except Exception as e:
+            if email:
+                if "Direkt" in secilen_teklif:
+                    teklif_sonucu = f"₺{direkt_satis} (Direkt Satış)"
+                else:
+                    teklif_sonucu = f"₺{vefa_nakit} (Vefa - Geri Alım: ₺{vefa_geri_alim})"
+                
+                try:
+                    # Gerçek Veritabanına (SQLite) Kayıt İşlemi
+                    conn = sqlite3.connect('vefatech_sistem.db')
+                    c = conn.cursor()
+                    c.execute("INSERT INTO cuzdan (email, cihaz, teklif, tarih) VALUES (?, ?, ?, ?)", 
+                              (email, f"{aranacak_kelime} ({kozmetik_durum})", teklif_sonucu, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                    conn.commit()
+                    conn.close()
+                    
+                    st.session_state['kullanici_giris_yapti_mi'] = True
+                    st.session_state['aktif_kullanici_maili'] = email
+                    
+                    st.success("Harika! Talebiniz doğrudan şifreli veritabanımıza kaydedildi. Sol menüden 'Cüzdanım' sekmesine gidebilirsiniz.")
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"Sistemsel bir veritabanı hatası oluştu: {e}")
+            else:
+                st.error("Lütfen randevu kaydı için bir e-posta adresi girin.")
                             st.error("Sistemsel bir bağlantı hatası oluştu.")
                     else:
                         st.error("Lütfen randevu kaydı için bir e-posta adresi girin.")
@@ -242,34 +253,53 @@ elif st.session_state['sayfa'] == "Anında Değerleme Modülü":
 # ==============================================================================
 # BÖLÜM 5: CÜZDANIM / TEKLİFLERİM MODÜLÜ (KULLANICI PANELİ)
 # ==============================================================================
+
 elif st.session_state['sayfa'] == "Cüzdanım / Tekliflerim":
     st.markdown("## 💼 Cüzdanım ve Aktif Tekliflerim")
     st.markdown("Buradan sistemdeki onaylanmış tekliflerinizi ve vefa (geri alım) işlemlerinizi takip edebilirsiniz.")
     st.write("")
     
-    if st.session_state['kullanici_giris_yapti_mi'] and len(st.session_state['bekleyen_teklifler']) > 0:
-        st.success(f"Hoş geldiniz, {st.session_state['aktif_kullanici_maili']}")
-        st.markdown("### ⏳ Bekleyen İşlemleriniz")
+    # Gerçek Veritabanı (Login) Giriş Ekranı
+    if not st.session_state['kullanici_giris_yapti_mi']:
+        st.info("Kayıtlı tekliflerinizi görmek için e-posta adresinizle sisteme giriş yapın.")
+        st.markdown('<div class="advanced-condition-box">', unsafe_allow_html=True)
+        giris_maili = st.text_input("E-Posta Adresiniz:", placeholder="ornek@gmail.com")
+        if st.button("Giriş Yap", type="primary"):
+            if giris_maili:
+                st.session_state['kullanici_giris_yapti_mi'] = True
+                st.session_state['aktif_kullanici_maili'] = giris_maili
+                st.rerun()
+            else:
+                st.warning("Lütfen geçerli bir e-posta girin.")
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        aktif_mail = st.session_state['aktif_kullanici_maili']
+        st.success(f"Oturum açıldı: {aktif_mail}")
+        st.markdown("### ⏳ Veritabanındaki İşlemleriniz")
         
-        for i, teklif in enumerate(st.session_state['bekleyen_teklifler']):
-            st.markdown('<div class="advanced-condition-box">', unsafe_allow_html=True)
-            st.markdown(f"Cihaz: {teklif['Cihaz']}")
-            st.markdown(f"Tarih: {teklif['Tarih']}")
-            st.markdown(f"Anlaşılan Tutar: <span style='color:#10b981; font-weight:bold; font-size:18px;'>{teklif['Teklif']}</span>", unsafe_allow_html=True)
-            st.markdown("---")
-            st.markdown("📍 Durum: Fiziksel test ve teslimat için sizinle iletişime geçilmesi bekleniyor.")
-            st.markdown('</div>', unsafe_allow_html=True)
-            st.write("")
+        # SQLite'dan Kullanıcının Verilerini Çekiyoruz (SQL Sorgusu)
+        conn = sqlite3.connect('vefatech_sistem.db')
+        df_cuzdan = pd.read_sql_query(f"SELECT cihaz, teklif, tarih FROM cuzdan WHERE email='{aktif_mail}'", conn)
+        conn.close()
         
-        if st.button("🚪 Oturumu Kapat"):
+        if len(df_cuzdan) > 0:
+            for index, row in df_cuzdan.iterrows():
+                st.markdown('<div class="advanced-condition-box">', unsafe_allow_html=True)
+                st.markdown(f"**Cihaz:** {row['cihaz']}")
+                st.markdown(f"**Tarih:** {row['tarih']}")
+                st.markdown(f"**Anlaşılan Tutar:** <span style='color:#10b981; font-weight:bold; font-size:18px;'>{row['teklif']}</span>", unsafe_allow_html=True)
+                st.markdown("---")
+                st.markdown("📍 *Durum: Veritabanına işlendi. Saha ekibi onayı bekleniyor.*")
+                st.markdown('</div>', unsafe_allow_html=True)
+                st.write("")
+        else:
+            st.warning("Veritabanımızda bu e-posta adresine ait aktif bir işlem bulunmuyor.")
+            
+        if st.button("🚪 Çıkış Yap"):
             st.session_state['kullanici_giris_yapti_mi'] = False
             st.session_state['aktif_kullanici_maili'] = ""
-            st.session_state['bekleyen_teklifler'] = []
             st.rerun()
-    else:
-        st.info("Şu anda sistemde kayıtlı aktif bir teklifiniz veya cihazınız bulunmuyor.")
-        st.markdown("Hemen sol menüden Anında Değerleme Modülü'ne geçerek cihazınız için teklif alabilir ve sürecinizi başlatabilirsiniz.")
-
+            
 # ==============================================================================
 # BÖLÜM 6: LOJİSTİK VE CANLI RANDEVU SİSTEMİ (SAHA OPERASYONU)
 # ==============================================================================
@@ -499,40 +529,84 @@ elif st.session_state['sayfa'] == "Ayarlar ve Profil":
 # BÖLÜM 11: SIKÇA SORULAN SORULAR VE CANLI DESTEK MERKEZİ
 # ==============================================================================
 
+# ==============================================================================
+# BÖLÜM 11: SIKÇA SORULAN SORULAR VE YAPAY ZEKA (AI) DESTEK BOTU
+# ==============================================================================
+
 elif st.session_state['sayfa'] == "SSS ve Destek":
-    st.markdown("## 💬 Destek Merkezi ve SSS")
-    st.markdown("Aklınıza takılan tüm soruların cevapları burada. Sistemimizin nasıl güvenle çalıştığını öğrenin.")
+    st.markdown("## 💬 Destek Merkezi ve AI Asistan")
+    st.markdown("Aklınıza takılan tüm soruları 7/24 hizmet veren Yapay Zeka Asistanımıza sorabilirsiniz.")
     st.write("")
-    
-    st.markdown("### ❓ Sıkça Sorulan Sorular")
-    
-    with st.expander("Vefa (Geri Alım) Hakkı tam olarak nedir? Yasal mıdır?"):
-        st.write("Vefa hakkı, Türk Borçlar Kanunu'nda (TBK) açıkça yer alan yasal bir haktır. Cihazınızı bize sattığınızda, sözleşmede belirtilen süre (30 Gün) içinde anlaşılan bedeli ödeyerek cihazınızı aynı kondisyonda geri alma garantisine sahip olursunuz.")
-    
-    with st.expander("Cihazım 30 gün boyunca nerede ve nasıl saklanıyor?"):
-        st.write("Cihazınız teslim alındığı an videolu teste tabi tutulur, kondisyonu kayıt altına alınır ve özel güvenlikli kasalarımızda muhafaza edilir. Siz geri alana kadar kesinlikle kullanılmaz veya başkasına kiralanmaz.")
-    
-    with st.expander("30 günlük süre dolduğunda ne olur?"):
-        st.write("Eğer 30 günlük süre içinde geri alım bedelini ödemezseniz veya süreyi uzatma talebinde bulunmazsanız, yasal olarak vefa hakkınız düşer. Cihazın mülkiyeti tamamen platformumuza geçer ve satışa çıkarılır.")
-    
-    with st.expander("Cihazımda test sırasında bir hasar oluşursa ne olacak?"):
-        st.write("Fiziksel teslimat sırasında cihazınızın çalışma durumu ve kozmetiği iki tarafın huzurunda kayıt altına alınır. Bizden kaynaklı herhangi bir hasarda cihazınızın güncel 2. el piyasa değeri size nakit olarak anında tazmin edilir.")
-    
-    st.write("")
-    st.markdown("---")
-    st.markdown("### 🎧 Canlı Destek Ekibi")
-    st.markdown('<div class="advanced-condition-box">', unsafe_allow_html=True)
-    st.markdown("Saha ekibimiz veya değerleme uzmanlarımızla iletişime geçin.")
-    
-    kullanici_mesaji = st.text_input("Mesajınızı yazın:", placeholder="Merhaba, randevu saatimi değiştirmek istiyorum...")
-    
-    if st.button("Mesajı Gönder", type="primary"):
-        if kullanici_mesaji:
-            st.success("Mesajınız destek ekibimize iletildi! Ortalama yanıt süresi: **15 Dakika**.")
-            st.info("Kayıtlı e-posta adresiniz veya telefon numaranız üzerinden dönüş sağlanacaktır.")
-        else:
-            st.warning("Lütfen göndermeden önce bir mesaj yazın.")
-    st.markdown('</div>', unsafe_allow_html=True)
+
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+        st.markdown("### ❓ Sıkça Sorulan Sorular")
+        with st.expander("Vefa (Geri Alım) Hakkı tam olarak nedir? Yasal mıdır?"):
+            st.write("Vefa hakkı, Türk Borçlar Kanunu'nda (TBK) açıkça yer alan yasal bir haktır. Cihazınızı bize sattığınızda, sözleşmede belirtilen süre (30 Gün) içinde anlaşılan bedeli ödeyerek cihazınızı aynı kondisyonda geri alma garantisine sahip olursunuz.")
+        
+        with st.expander("Cihazım 30 gün boyunca nerede ve nasıl saklanıyor?"):
+            st.write("Cihazınız teslim alındığı an videolu teste tabi tutulur, kondisyonu kayıt altına alınır ve özel güvenlikli kasalarımızda muhafaza edilir. Siz geri alana kadar kesinlikle kullanılmaz veya başkasına kiralanmaz.")
+        
+        with st.expander("Cihazımda test sırasında bir hasar oluşursa ne olacak?"):
+            st.write("Fiziksel teslimat sırasında cihazınızın çalışma durumu ve kozmetiği iki tarafın huzurunda kayıt altına alınır. Bizden kaynaklı herhangi bir hasarda cihazınızın güncel 2. el piyasa değeri size nakit olarak anında tazmin edilir.")
+
+    with col2:
+        st.markdown("### 🤖 VefaTech AI Canlı Destek")
+        st.markdown('<div class="advanced-condition-box" style="height: 400px; overflow-y: auto; display: flex; flex-direction: column;">', unsafe_allow_html=True)
+        
+        # Chat geçmişini oturum hafızasında (session state) başlat
+        if "mesajlar" not in st.session_state:
+            st.session_state.mesajlar = [{"role": "assistant", "content": "Merhaba! Ben VefaTech AI Asistanı. Cihaz değerlemesi, kondisyon kesintileri veya 30 günlük emanet (vefa) süreci hakkında size nasıl yardımcı olabilirim?"}]
+
+        # Geçmiş mesajları ekrana ChatGPT tarzında bas
+        for msg in st.session_state.mesajlar:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+                
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Kullanıcıdan mesaj al (Ekranın altına yapışık modern chat kutusu)
+    prompt = st.chat_input("Bot'a bir soru sorun (Örn: Ekranı kırık telefon ne kadar değer kaybeder?)")
+
+    if prompt:
+        # Kullanıcı mesajını anında ekrana ekle
+        st.session_state.mesajlar.append({"role": "user", "content": prompt})
+        with col2:
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            # AI Cevap Motoru (Kelime analizine göre akıllı yanıtlar)
+            cevap = ""
+            mesaj_kucuk = prompt.lower()
+
+            if any(kelime in mesaj_kucuk for kelime in ["çizik", "kırık", "hasar", "ekran"]):
+                cevap = "Cihazdaki kozmetik hasarlar değerlemeyi doğrudan etkiler. Kılcal çizikler sistemimizde %10, ağır hasarlar veya tamir görmüş cihazlar ise ortalama %25 oranında değer kaybına yol açar. Kesin sonuç için cihazı anında değerleme modülünden test edebilirsiniz."
+            elif any(kelime in mesaj_kucuk for kelime in ["kutu", "fatura", "kayıp", "yok"]):
+                cevap = "Kutu ve fatura eksikliği cihazın ikinci el güvenilirliğini etkilediği için değer düşüklüğü yaratır. Sadece kutu yoksa %5, hem kutu hem fatura yoksa fiyat üzerinden %10 kesinti uygulanır."
+            elif any(kelime in mesaj_kucuk for kelime in ["süre", "kaç gün", "vefa", "uzat", "zaman", "geri al"]):
+                cevap = "Vefa (Geri Alım) sözleşmemiz standart olarak 30 takvim günüdür. Bu süre içinde anlaşılan geri alım bedelini ödeyerek cihazınızı aynı kondisyonda geri alabilirsiniz. Süre dolduğunda mülkiyet şirketimize geçer."
+            elif any(kelime in mesaj_kucuk for kelime in ["para", "nakit", "iban", "ödeme"]):
+                cevap = "Cihazınız saha ekibimiz tarafından test edilip sözleşme imzalandığı an, anlaşılan nakit tutar saniyeler içinde doğrudan belirttiğiniz IBAN adresine FAST/EFT ile gönderilir."
+            elif any(kelime in mesaj_kucuk for kelime in ["garanti", "devam"]):
+                cevap = "Harika! Cihazınızın garantisinin devam etmesi değerini artırır. Sistemimiz, garantisi devam eden cihazlara piyasa ortalamasının üzerinden ekstra %5 prim uygulamaktadır."
+            else:
+                cevap = "Bu soruyu tam olarak anlayamadım. Bir yapay zeka asistanı olarak şu an cihaz değerlemesi, fiyat kesintileri (hasar/kutu durumu) ve 30 günlük vefa süreci konularında eğitildim. Sorunuzu bu çerçevede tekrar sorabilir misiniz?"
+
+            # AI mesajını ekle ve göster (Daktilo Efekti Simülasyonu)
+            import time
+            with st.chat_message("assistant"):
+                mesaj_alani = st.empty()
+                animasyon_metni = ""
+                for harf in cevap:
+                    animasyon_metni += harf
+                    mesaj_alani.markdown(animasyon_metni + "▌")
+                    time.sleep(0.01) # Daktilo hızı
+                mesaj_alani.markdown(cevap)
+
+            st.session_state.mesajlar.append({"role": "assistant", "content": cevap})
+            time.sleep(0.5)
+            st.rerun() # Sayfayı yenile ki geçmiş tam otursun
 
 # ==============================================================================
 # BÖLÜM 12: REFERANS SİSTEMİ VE OYUNLAŞTIRMA (DAVET ET KAZAN)
