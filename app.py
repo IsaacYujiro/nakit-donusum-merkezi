@@ -83,22 +83,37 @@ if st.session_state['sayfa'] == "Ana Sayfa (Vitrin)":
         col1, col2, col3 = st.columns(3)
         
         for i, urun in populer_urunler.iterrows():
-            fiyat = int(urun['Piyasa_Fiyati_TL'])
-            kutu_icerigi = f'''
-            <div class="product-card">
-                <h4 style="color:#1f2937; margin-bottom:5px;">{urun['Urun_Adi']}</h4>
-                <p style="color:#6b7280; font-size:14px; margin-bottom:15px;">2. El Piyasa Değeri</p>
-                <h3 style="color:#10b981; margin:0;">₺{fiyat:,}</h3>
-            </div>
-            '''
-            if i % 3 == 0:
-                col1.markdown(kutu_icerigi, unsafe_allow_html=True)
-            elif i % 3 == 1:
-                col2.markdown(kutu_icerigi, unsafe_allow_html=True)
-            else:
-                col3.markdown(kutu_icerigi, unsafe_allow_html=True)
+        fiyat = int(urun['Piyasa_Fiyati_TL'])
+        urun_adi = urun['Urun_Adi'].upper()
         
-        st.write("")
+        # Ana sayfa için basit görsel eşleştirme motoru
+        gorsel_linki = "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=400&q=80"
+        if "PLAYSTATION 5" in urun_adi:
+            gorsel_linki = "https://gmedia.playstation.com/is/image/SIEPDC/ps5-product-thumbnail-01-en-14sep21?$1600px$"
+        elif "PLAYSTATION 4" in urun_adi:
+            gorsel_linki = "https://gmedia.playstation.com/is/image/SIEPDC/ps4-slim-image-block-01-en-24jul20?$1600px$"
+        elif "RTX 40" in urun_adi:
+            gorsel_linki = "https://images.nvidia.com/aem-dam/Solutions/geforce/ada/rtx-4090/geforce-rtx-4090-gallery-b-750x422.png"
+        elif "RTX 30" in urun_adi:
+            gorsel_linki = "https://images.nvidia.com/aem-dam/Solutions/geforce/ampere/rtx-3080/geforce-rtx-3080-gallery-b-750x422.png"
+        elif "RYZEN" in urun_adi:
+            gorsel_linki = "https://www.amd.com/system/files/2022-11/1761919-amd-ryzen-9-pib-right-facing-1260x709.png"
+
+        kutu_icerigi = f'''
+        <div class="product-card" style="text-align: center;">
+            <img src="{gorsel_linki}" style="width:100%; height:140px; object-fit:contain; margin-bottom:15px;">
+            <h4 style="color:#1f2937; margin-bottom:5px;">{urun['Urun_Adi']}</h4>
+            <p style="color:#6b7280; font-size:14px; margin-bottom:15px;">2. El Piyasa Değeri</p>
+            <h3 style="color:#10b981; margin:0;">₺{fiyat:,}</h3>
+        </div>
+        '''
+        
+        if i % 3 == 0:
+            col1.markdown(kutu_icerigi, unsafe_allow_html=True)
+        elif i % 3 == 1:
+            col2.markdown(kutu_icerigi, unsafe_allow_html=True)
+        else:
+            col3.markdown(kutu_icerigi, unsafe_allow_html=True)
         st.info(f"💡 Sistemimizde anlık olarak {len(df)} farklı cihazın canlı piyasa verisi bulunmaktadır.")
     else:
         st.error("Veri tabanına (piyasa_verisi.csv) ulaşılamıyor. Lütfen dosyanın yüklü olduğundan emin olun.")
