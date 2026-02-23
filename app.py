@@ -83,8 +83,8 @@ if st.session_state['sayfa'] == "Ana Sayfa (Vitrin)":
         col1, col2, col3 = st.columns(3)
         
         for i, urun in populer_urunler.iterrows():
-        fiyat = int(urun['Piyasa_Fiyati_TL'])
-        urun_adi = urun['Urun_Adi'].upper()
+            fiyat = int(urun['Piyasa_Fiyati_TL'])
+            urun_adi = urun['Urun_Adi'].upper()
         
         # Ana sayfa için basit görsel eşleştirme motoru
         gorsel_linki = "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=400&q=80"
