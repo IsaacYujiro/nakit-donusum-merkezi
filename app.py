@@ -7,9 +7,10 @@ from datetime import datetime
 st.set_page_config(page_title="Nakit Dönüşüm Merkezi", page_icon="💸", layout="centered")
 
 st.markdown("""
-<style>
+    <style>
     .big-font { font-size:24px !important; font-weight: bold; color: #1E88E5;}
     .offer-box { background-color: #f0f2f6; padding: 20px; border-radius: 10px; margin-top: 20px;}
+    .condition-box { background-color: #ffffff; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -28,7 +29,7 @@ def veri_yukle():
 df = veri_yukle()
 
 if df is not None:
-    st.subheader("Cihazının Değerini Öğren")
+    st.subheader("1. Cihazınızı Seçin")
     aranacak_kelime = st.text_input("Marka veya Model Yazın (Örn: RTX 3050, RX 9060)")
 
     if aranacak_kelime:
@@ -38,13 +39,48 @@ if df is not None:
         if len(eslesen_urunler) == 0:
             st.warning(f"Sistemimizde henüz '{aranacak_kelime}' için yeterli fiyat verisi yok.")
         else:
+            # Temel Fiyat
             ortalama_piyasa = eslesen_urunler['Piyasa_Fiyati_TL'].mean()
-            nakit_teklif = math.floor(ortalama_piyasa * 0.45)
-            geri_alim = math.floor(nakit_teklif * 1.30)
+            baz_teklif = ortalama_piyasa * 0.45
             
-            st.success(f"Piyasa taraması tamamlandı! Bu model için {len(eslesen_urunler)} adet ilan analiz edildi.")
+            st.success(f"Piyasa taraması tamamlandı! Temel değerleme yapıldı.")
+            
+            # Dinamik Kondisyon Anketi
+            st.subheader("2. Cihazın Durumu")
+            st.markdown('<div class="condition-box">', unsafe_allow_html=True)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                kutu_durumu = st.radio("Kutu ve Fatura", ["Kutu ve Fatura Tam", "Sadece Kutu Var", "Kutu/Fatura Yok"])
+                garanti_durumu = st.radio("Garanti Durumu", ["Garantisi Bitti", "Garantisi Devam Ediyor"])
+            with col2:
+                kozmetik_durum = st.selectbox("Kozmetik Durum", ["Kusursuz (Sıfır Ayarında)", "Ufak Çizikler / Kullanım İzi", "Hasarlı / Tamir Görmüş"])
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Algoritma: Seçimlere göre risk çarpanını hesapla
+            carpan = 1.0
+            
+            if kutu_durumu == "Sadece Kutu Var":
+                carpan -= 0.05
+            elif kutu_durumu == "Kutu/Fatura Yok":
+                carpan -= 0.10
+                
+            if garanti_durumu == "Garantisi Devam Ediyor":
+                carpan += 0.05
+                
+            if kozmetik_durum == "Ufak Çizikler / Kullanım İzi":
+                carpan -= 0.10
+            elif kozmetik_durum == "Hasarlı / Tamir Görmüş":
+                carpan -= 0.25
+                
+            # Nihai Fiyatı Çıkar
+            nihai_nakit_teklif = math.floor(baz_teklif * carpan)
+            geri_alim = math.floor(nihai_nakit_teklif * 1.30)
+            
+            st.subheader("3. Değerleme Sonucu")
             st.markdown('<div class="offer-box">', unsafe_allow_html=True)
-            st.markdown(f'<p class="big-font">Size Özel Anında Nakit Teklifimiz: {nakit_teklif:,} TL</p>', unsafe_allow_html=True)
+            st.markdown(f'<p class="big-font">Size Özel Anında Nakit Teklifimiz: {nihai_nakit_teklif:,} TL</p>', unsafe_allow_html=True)
             st.markdown(f"30 Gün İçinde Geri Alım Fiyatınız: {geri_alim:,} TL")
             st.markdown('</div>', unsafe_allow_html=True)
             
@@ -59,7 +95,7 @@ if df is not None:
                         "Tarih": datetime.now().strftime("%Y-%m-%d %H:%M"),
                         "Email": email,
                         "Cihaz": aranacak_kelime,
-                        "Teklif": nakit_teklif
+                        "Teklif": nihai_nakit_teklif
                     }
                     
                     google_url = "https://script.google.com/macros/s/AKfycbwnBoJA3WCy0LKWA0K1sCXvmie3fYPpx9Mg3hmTtildoe7_sUyNEHUz7FUI8koPyQrDuQ/exec"
