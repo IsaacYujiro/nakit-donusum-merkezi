@@ -122,7 +122,32 @@ elif st.session_state['sayfa'] == "Anında Değerleme Modülü":
                 st.warning(f"Sistemimizde '{aranacak_kelime}' için yeterli fiyat verisi yok. Ürün havuzumuz sürekli güncellenmektedir.")
             else:
                 ortalama_piyasa = eslesen_urunler['Piyasa_Fiyati_TL'].mean()
+                                # --- YENİ EKLENEN GÖRSEL MOTORU ---
+                urun_gorselleri = {
+                    "PLAYSTATION 5": "https://gmedia.playstation.com/is/image/SIEPDC/ps5-product-thumbnail-01-en-14sep21?$1600px$",
+                    "PLAYSTATION 4": "https://gmedia.playstation.com/is/image/SIEPDC/ps4-slim-image-block-01-en-24jul20?$1600px$",
+                    "XBOX": "https://img-prod-cms-rt-microsoft-com.akamaized.net/cms/api/am/imageFileData/RE4mRni?ver=e700",
+                    "RTX 40": "https://images.nvidia.com/aem-dam/Solutions/geforce/ada/rtx-4090/geforce-rtx-4090-gallery-b-750x422.png",
+                    "RTX 30": "https://images.nvidia.com/aem-dam/Solutions/geforce/ampere/rtx-3080/geforce-rtx-3080-gallery-b-750x422.png",
+                    "RX 7": "https://www.amd.com/system/files/2022-11/1761919-amd-radeon-rx-7900-xtx-gallery-1-1260x709.png",
+                    "RYZEN": "https://www.amd.com/system/files/2022-11/1761919-amd-ryzen-9-pib-right-facing-1260x709.png",
+                    "APPLE WATCH": "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/watch-card-40-s9-202309?wid=680&hei=528&fmt=p-jpg",
+                    "AIRPODS": "https://store.storeimages.cdn-apple.com/4668/as-images.apple.com/is/MME73?wid=1144&hei=1144&fmt=jpeg"
+                }
                 
+                gosterilecek_gorsel = "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=400&q=80" # Cihaz tanınmazsa çıkacak varsayılan şık teknoloji fotoğrafı
+                for anahtar_kelime, link in urun_gorselleri.items():
+                    if anahtar_kelime in aranacak_kelime:
+                        gosterilecek_gorsel = link
+                        break
+                
+                st.write("")
+                col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
+                with col_img2:
+                    st.image(gosterilecek_gorsel, use_container_width=True, caption=f"Seçilen Cihaz: {eslesen_urunler['Urun_Adi'].values[0]}")
+                st.write("")
+                st.markdown("---")
+                # -----------------------------------
                 st.markdown("### 📋 1. Adım: Cihazın Kondisyonunu Belirleyin")
                 st.markdown('<div class="advanced-condition-box">', unsafe_allow_html=True)
                 
